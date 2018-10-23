@@ -1,0 +1,120 @@
+---
+title: "07_Stroud_Likelihood"
+author: "Hannah Stroud"
+date: "October 23, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(readr)
+library(ggplot2)
+library(modelr)
+library(dplyr)
+library(tidyr)
+library(MASS)
+```
+
+## 1. Grid Sampling! Load up the pufferfish data and use grid sampling to find the MLE of the slope, intercept and residual SD of this model. Feel free to eyeball results from an lm() fit to get reasonable values. Try not to do this for a grid of more than ~100K points (more if you want!). It’s ok to be coarse. Compare to lm.
+```{r}
+puff <-read_csv("./Data/16q11PufferfishMimicry Caley & Schluter 2003.csv")
+#coarse scale lm
+summary(lm(puff$predators~puff$resemblance))
+ #build function
+lhood_func  <- function(slope, inter, r_sd) {
+  #data gen process (mx +b where x=resemblance)
+  pred_fit <- inter + slope* puff$resemblance
+  
+  #likelihood
+  sum(dnorm(puff$predators, pred_fit , r_sd, log=TRUE ))
+}
+ #grid sample 
+puff_grid <- crossing(slope= seq(2.5, 3.5, 0.05), 
+                      inter= seq(0.5, 4, 0.05),
+                      r_sd=seq(2.9, 3.1, 0.01)) %>% 
+  rowwise() %>% 
+  mutate(logl= lhood_func(slope, inter, r_sd))%>%
+  ungroup()
+puff_grid%>% filter(logl== max(logl))
+```
+
+## 2. Surfaces! Filter the dataset to the MLE of the SD. Plot the surface for the slope and intercept in whatever way you find most compelling. You might want to play around with zooming in to different regions, etc. Have fun!
+```{r}
+library(viridis)
+sd_plot <- puff_grid%>% filter(r_sd== max(r_sd))
+
+ggplot(data=sd_plot, aes(x=slope, y=inter, fill= exp(logl))) +
+  geom_raster()+
+  scale_fill_viridis()
+```
+## 3. GLM! Now, compare those results to results from glm. Show the profiles and confidence intervals from glm() for the slope and intercept.
+
+```{r}
+puff_mle <- glm(predators~resemblance, 
+    family= gaussian(link= "identity"),
+    data=puff)
+
+puf_prof <- profile(puff_mle)
+plot(puf_prof)   #nice straight lines
+        
+
+library(profileModel)
+
+puf_prof_mod<- profileModel(puff_mle, 
+                             objective= "ordinaryDeviance", 
+                             quantile= qchisq(0.95,1))
+plot(puf_prof_mod)
+#yay parabolas!
+confint(puf_prof)
+
+```
+
+##4. Get Outside of GLM!There are a variety of optimizers out there, and packages for accessing them. One of the best is bbmle by Ecologist Ben Bolker 
+```{r}
+#load bbmle and try out mle2
+library(bbmle)
+
+#rewrite likelihood funct to return negative loglikelihood 
+min_ll <-  function(slope, inter, r_sd){ -1*lhood_func(slope, inter, r_sd)}
+
+#mle2 start with values close to actual estimates 
+puff_mle2 <- mle2(min_ll,
+                  start= list(slope=2.5, inter = 1.5, r_sd=3 ))
+
+#look at summary and plot the profile 
+summary(puff_mle2)
+
+puf_mod2 <- profile(puff_mle2)
+plot(puf_mod2)
+
+```
+
+##5. Start values! What happens if you start with start values very far away from the initial values. Failing here is fine. But what do you think is happening, and what does this say about the value of start values?
+```{r}
+bad_start <- mle2(min_ll,
+                  start= list(slope=85, inter = -50, r_sd=0.05 ))
+
+#look at summary and plot the profile 
+summary(bad_start)
+
+puf_mod2 <- profile(bad_start)
+```
+I have no idea. I don't understand this at all.  
+
+##6. Algorithms! By default, mle2 uses the Nelder-Mead algorithm via the optim function. What happens if you add an method argument to “SANN” or “L-BFGS-B” (and for the later, which is bounded sampling, give it a lower argument for your residual value, so it’s always positive). See  ?optim for some more guidance. Do these both converge to the same value? Based on their profiles, do you trust them?
+
+```{r}
+puff_SANN <- mle2(min_ll,
+                  start= list(slope=2.5, inter = 1.5, r_sd=3 ), method= "SANN")
+summary(puff_SANN)
+plot(profile(puff_SANN))
+
+puff_LBFGS <- mle2(min_ll,
+                  start= list(slope=2.5, inter = 1.5, r_sd=2.8 ), method= "L-BFGS-B")
+summary(puff_LBFGS)
+plot(profile(puff_LBFGS))
+```
+Their profiles look good- 
