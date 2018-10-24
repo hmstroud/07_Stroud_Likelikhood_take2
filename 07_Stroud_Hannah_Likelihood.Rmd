@@ -40,7 +40,7 @@ puff_grid <- crossing(slope= seq(2.5, 3.5, 0.05),
   ungroup()
 puff_grid%>% filter(logl== max(logl))
 ```
-
+Compared to lm, our grid sampling values are pretty similar.  
 ## 2. Surfaces! Filter the dataset to the MLE of the SD. Plot the surface for the slope and intercept in whatever way you find most compelling. You might want to play around with zooming in to different regions, etc. Have fun!
 ```{r}
 library(viridis)
@@ -48,7 +48,7 @@ sd_plot <- puff_grid%>% filter(r_sd== max(r_sd))
 
 ggplot(data=sd_plot, aes(x=slope, y=inter, fill= exp(logl))) +
   geom_raster()+
-  scale_fill_viridis()
+  scale_fill_viridis(option="C")
 ```
 ## 3. GLM! Now, compare those results to results from glm. Show the profiles and confidence intervals from glm() for the slope and intercept.
 
@@ -102,7 +102,7 @@ summary(bad_start)
 
 puf_mod2 <- profile(bad_start)
 ```
-I have no idea. I don't understand this at all.  
+We are so far out of range that it isn't picking up where our values converge. 
 
 ##6. Algorithms! By default, mle2 uses the Nelder-Mead algorithm via the optim function. What happens if you add an method argument to “SANN” or “L-BFGS-B” (and for the later, which is bounded sampling, give it a lower argument for your residual value, so it’s always positive). See  ?optim for some more guidance. Do these both converge to the same value? Based on their profiles, do you trust them?
 
@@ -117,4 +117,4 @@ puff_LBFGS <- mle2(min_ll,
 summary(puff_LBFGS)
 plot(profile(puff_LBFGS))
 ```
-Their profiles look good- 
+Their profiles look good, they do converge to all the same values. I trust the results. 
