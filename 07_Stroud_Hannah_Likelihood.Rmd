@@ -100,9 +100,9 @@ bad_start <- mle2(min_ll,
 #look at summary and plot the profile 
 summary(bad_start)
 
-puf_mod2 <- profile(bad_start)
+#puf_mod2 <- profile(bad_start)
 ```
-We are so far out of range that it isn't picking up where our values converge. 
+We are so far out of range that it isn't picking up where our values converge. I got a Hessian error- hash-tagged it out so I could knit into html. 
 
 ##6. Algorithms! By default, mle2 uses the Nelder-Mead algorithm via the optim function. What happens if you add an method argument to “SANN” or “L-BFGS-B” (and for the later, which is bounded sampling, give it a lower argument for your residual value, so it’s always positive). See  ?optim for some more guidance. Do these both converge to the same value? Based on their profiles, do you trust them?
 
